@@ -1,31 +1,32 @@
 {
-  "name": "parcial_final_paa",
-  "version": "1.0.0",
-  "description": "",
-  "main": "src/index.js",
+  "name": "banco-dhabi-sms",
+  "version": "2.0.0",
+  "description": "Sistema OTP SMS con Kafka, Circuit Breaker, CQRS, fallback y panel de demo",
+  "main": "dist/main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node src/index.js"
+    "dev":        "tsx watch src/main.ts",
+    "build":      "tsc",
+    "start":      "node dist/main.js",
+    "test":       "vitest",
+    "kafka:up":   "docker-compose up -d",
+    "kafka:down": "docker-compose down"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/1JuL/parcial_final_paa.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/1JuL/parcial_final_paa/issues"
-  },
-  "homepage": "https://github.com/1JuL/parcial_final_paa#readme",
   "dependencies": {
-    "axios": "1.16.1",
-    "dotenv": "17.4.2",
-    "express": "5.2.1",
-    "kafkajs": "2.2.4",
-    "mongodb": "7.2.0",
-    "mongoose": "9.6.3",
-    "pg": "8.21.0"
+    "axios":    "^1.7.0",
+    "dotenv":   "^16.4.0",
+    "express":  "^4.19.0",
+    "kafkajs":  "^2.2.4",
+    "mongoose": "^8.4.0",
+    "pg":       "^8.12.0",
+    "twilio":   "^5.3.0",
+    "zod":      "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.0",
+    "@types/node":    "^20.0.0",
+    "@types/pg":      "^8.11.0",
+    "tsx":            "^4.15.0",
+    "typescript":     "^5.4.0",
+    "vitest":         "^1.6.0"
   }
 }

@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Panel de Demo — Banco Dhabi SMS</title>
+    <meta
+      name="description"
+      content="Panel de control para demostrar el sistema OTP SMS del Banco Dhabi con Circuit Breaker, CQRS y Kafka"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #0f1117;
+        --bg2: #161b27;
+        --bg3: #1e2435;
+        --border: rgba(255, 255, 255, 0.08);
+        --text: #e2e8f0;
+        --muted: #64748b;
+        --green: #22c55e;
+        --green-dim: rgba(34, 197, 94, 0.12);
+        --red: #ef4444;
+        --red-dim: rgba(239, 68, 68, 0.12);
+        --amber: #f59e0b;
+        --amber-dim: rgba(245, 158, 11, 0.12);
+        --blue: #60a5fa;
+        --blue-dim: rgba(96, 165, 250, 0.12);
+        --indigo: #818cf8;
+        --radius: 12px;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        padding: 2rem;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      /* ── Header ── */
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border);
+      }
+      .header-icon {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, #1e40af, #7c3aed);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+      }
+      .header h1 {
+        font-size: 20px;
+        font-weight: 700;
+      }
+      .header p {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 8px var(--green);
+        animation: pulse 2s infinite;
+        margin-left: auto;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      /* ── Grid layout ── */
+      .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      /* ── Cards ── */
+      .card {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.25rem;
+      }
+      .card-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      /* ── Rows ── */
+      .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.6rem 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .row:last-child {
+        border-bottom: none;
+      }
+      .row-label {
+        color: var(--text);
+        font-size: 13px;
+      }
+      .row-sub {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 1px;
+      }
+
+      /* ── Toggle switch ── */
+      .toggle {
+        position: relative;
+        width: 44px;
+        height: 24px;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .toggle input {
+        display: none;
+      }
+      .toggle-track {
+        position: absolute;
+        inset: 0;
+        border-radius: 12px;
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        transition:
+          background 0.2s,
+          border-color 0.2s;
+      }
+      .toggle input:checked ~ .toggle-track {
+        background: var(--green);
+        border-color: var(--green);
+      }
+      .toggle-thumb {
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: white;
+        top: 3px;
+        left: 3px;
+        transition: transform 0.2s;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+      }
+      .toggle input:checked ~ .toggle-thumb {
+        transform: translateX(20px);
+      }
+
+      /* ── Badges ── */
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 99px;
+        white-space: nowrap;
+      }
+      .badge::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+      .badge-closed {
+        background: var(--green-dim);
+        color: var(--green);
+      }
+      .badge-open {
+        background: var(--red-dim);
+        color: var(--red);
+      }
+      .badge-half {
+        background: var(--amber-dim);
+        color: var(--amber);
+      }
+      .badge-up {
+        background: var(--green-dim);
+        color: var(--green);
+      }
+      .badge-down {
+        background: var(--red-dim);
+        color: var(--red);
+      }
+
+      /* ── CB State diagram ── */
+      .cb-states {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 0.75rem 0 1rem;
+      }
+      .cb-node {
+        flex: 1;
+        text-align: center;
+        padding: 6px 8px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 700;
+        opacity: 0.25;
+        transition:
+          opacity 0.3s,
+          transform 0.3s;
+        letter-spacing: 0.05em;
+      }
+      .cb-node.active {
+        opacity: 1;
+        transform: scale(1.05);
+      }
+      .cb-closed {
+        background: var(--green-dim);
+        color: var(--green);
+      }
+      .cb-open {
+        background: var(--red-dim);
+        color: var(--red);
+      }
+      .cb-half {
+        background: var(--amber-dim);
+        color: var(--amber);
+      }
+      .cb-arrow {
+        color: var(--muted);
+        font-size: 14px;
+        flex-shrink: 0;
+      }
+
+      /* ── Failure bar ── */
+      .fail-track {
+        height: 6px;
+        border-radius: 3px;
+        background: var(--bg3);
+        margin-top: 8px;
+        overflow: hidden;
+      }
+      .fail-fill {
+        height: 100%;
+        border-radius: 3px;
+        background: var(--green);
+        transition:
+          width 0.4s,
+          background 0.4s;
+      }
+      .fail-fill.warn {
+        background: var(--amber);
+      }
+      .fail-fill.danger {
+        background: var(--red);
+      }
+
+      /* ── Buttons ── */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 7px 14px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        border: 1px solid var(--border);
+        background: var(--bg3);
+        color: var(--text);
+        transition: all 0.15s;
+        white-space: nowrap;
+        font-family: "Inter", sans-serif;
+      }
+      .btn:hover {
+        background: var(--bg);
+        border-color: rgba(255, 255, 255, 0.15);
+      }
+      .btn:active {
+        transform: scale(0.97);
+      }
+      .btn-red {
+        border-color: var(--red);
+        color: var(--red);
+        background: var(--red-dim);
+      }
+      .btn-red:hover {
+        background: rgba(239, 68, 68, 0.2);
+      }
+      .btn-amber {
+        border-color: var(--amber);
+        color: var(--amber);
+        background: var(--amber-dim);
+      }
+      .btn-amber:hover {
+        background: rgba(245, 158, 11, 0.2);
+      }
+      .btn-green {
+        border-color: var(--green);
+        color: var(--green);
+        background: var(--green-dim);
+      }
+      .btn-green:hover {
+        background: rgba(34, 197, 94, 0.2);
+      }
+      .btn-indigo {
+        border-color: var(--indigo);
+        color: var(--indigo);
+        background: var(--blue-dim);
+      }
+      .btn-indigo:hover {
+        background: rgba(129, 140, 248, 0.2);
+      }
+      .btn-group {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 0.75rem;
+      }
+
+      /* ── Metric cards ── */
+      .metric-card {
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1rem;
+        text-align: center;
+      }
+      .metric-value {
+        font-size: 28px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .metric-label {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+      .metric-delta {
+        font-size: 10px;
+        margin-top: 2px;
+      }
+
+      /* ── Input ── */
+      .input-group {
+        display: flex;
+        gap: 8px;
+        margin: 0.75rem 0;
+      }
+      input[type="text"] {
+        flex: 1;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 13px;
+        background: var(--bg3);
+        color: var(--text);
+        outline: none;
+        font-family: "Inter", sans-serif;
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+      }
+      input[type="text"]:focus {
+        border-color: var(--indigo);
+        box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.15);
+      }
+
+      /* ── Log box ── */
+      .log-box {
+        background: #0a0e1a;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1rem;
+        font-family: "JetBrains Mono", "Courier New", monospace;
+        font-size: 12px;
+        max-height: 280px;
+        overflow-y: auto;
+        line-height: 1.9;
+        scrollbar-width: thin;
+        scrollbar-color: var(--bg3) transparent;
+      }
+      .log-box::-webkit-scrollbar {
+        width: 4px;
+      }
+      .log-box::-webkit-scrollbar-thumb {
+        background: var(--bg3);
+        border-radius: 2px;
+      }
+      .log-ok {
+        color: #4ade80;
+      }
+      .log-error {
+        color: #f87171;
+      }
+      .log-warn {
+        color: #fbbf24;
+      }
+      .log-info {
+        color: #93c5fd;
+      }
+      .log-time {
+        color: #374151;
+        margin-right: 10px;
+      }
+      .log-empty {
+        color: var(--muted);
+        font-style: italic;
+      }
+
+      /* ── Divider ── */
+      .divider {
+        height: 1px;
+        background: var(--border);
+        margin: 0.75rem 0;
+      }
+
+      /* ── Provider header ── */
+      .provider-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 2px;
+      }
+      .provider-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+      }
+
+      small {
+        color: var(--muted);
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ── Header ── -->
+    <header class="header">
+      <div class="header-icon">🏦</div>
+      <div>
+        <h1>Banco Dhabi — Panel de Demo</h1>
+        <p>Circuit Breaker · CQRS · Kafka · OTP SMS v2.0</p>
+      </div>
+      <div class="status-dot" title="Sistema activo"></div>
+    </header>
+
+    <div class="grid-2">
+      <!-- ── Circuit Breaker ── -->
+      <div class="card">
+        <div class="card-title">⚡ Circuit Breaker</div>
+        <div class="cb-states">
+          <div id="node-closed" class="cb-node cb-closed active">CLOSED</div>
+          <span class="cb-arrow">→</span>
+          <div id="node-open" class="cb-node cb-open">OPEN</div>
+          <span class="cb-arrow">→</span>
+          <div id="node-half" class="cb-node cb-half">HALF-OPEN</div>
+        </div>
+        <div class="row">
+          <span class="row-label">Estado actual</span>
+          <span id="cb-badge" class="badge badge-closed">CLOSED</span>
+        </div>
+        <div class="row">
+          <span class="row-label">Fallos consecutivos</span>
+          <span id="cb-fails" style="font-variant-numeric: tabular-nums">0 / 5</span>
+        </div>
+        <div class="fail-track">
+          <div id="fail-bar" class="fail-fill" style="width: 0%"></div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-green" id="btn-cb-closed" onclick="forceCB('CLOSED')">
+            ✓ Cerrar
+          </button>
+          <button class="btn btn-red" id="btn-cb-open" onclick="forceCB('OPEN')">✗ Abrir</button>
+          <button class="btn btn-amber" id="btn-cb-half" onclick="forceCB('HALF_OPEN')">
+            ⟳ Half-Open
+          </button>
+          <button class="btn" id="btn-cb-reset" onclick="resetCB()">↺ Reset fallos</button>
+        </div>
+      </div>
+
+      <!-- ── Proveedores SMS ── -->
+      <div class="card">
+        <div class="card-title">📱 Proveedores SMS</div>
+
+        <!-- ClickSend (Primario) -->
+        <div class="row">
+          <div class="provider-header">
+            <div class="provider-icon" style="background: var(--blue-dim)">📨</div>
+            <div>
+              <strong>ClickSend</strong>
+              <div class="row-sub">Primario · API Global · clicksend.com</div>
+            </div>
+          </div>
+          <span id="tag-clicksend" class="badge badge-up">activo</span>
+        </div>
+        <div class="row">
+          <span class="row-label">Habilitado</span>
+          <label class="toggle">
+            <input
+              type="checkbox"
+              id="chk-clicksend-enabled"
+              checked
+              onchange="setProvider('clicksend', 'enabled', this.checked)"
+            />
+            <span class="toggle-track"></span>
+            <span class="toggle-thumb"></span>
+          </label>
+        </div>
+        <div class="row">
+          <span class="row-label">Simular lentitud (timeout >8s)</span>
+          <label class="toggle">
+            <input
+              type="checkbox"
+              id="chk-clicksend-slow"
+              onchange="setProvider('clicksend', 'slow', this.checked)"
+            />
+            <span class="toggle-track"></span>
+            <span class="toggle-thumb"></span>
+          </label>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Twilio (Fallback) -->
+        <div class="row">
+          <div class="provider-header">
+            <div class="provider-icon" style="background: var(--red-dim)">🔴</div>
+            <div>
+              <strong>Twilio</strong>
+              <div class="row-sub">Fallback · API Global · twilio.com</div>
+            </div>
+          </div>
+          <span id="tag-twilio" class="badge badge-up">activo</span>
+        </div>
+        <div class="row">
+          <span class="row-label">Habilitado</span>
+          <label class="toggle">
+            <input
+              type="checkbox"
+              id="chk-twilio-enabled"
+              checked
+              onchange="setProvider('twilio', 'enabled', this.checked)"
+            />
+            <span class="toggle-track"></span>
+            <span class="toggle-thumb"></span>
+          </label>
+        </div>
+        <div class="row">
+          <span class="row-label">Simular lentitud (timeout >15s)</span>
+          <label class="toggle">
+            <input
+              type="checkbox"
+              id="chk-twilio-slow"
+              onchange="setProvider('twilio', 'slow', this.checked)"
+            />
+            <span class="toggle-track"></span>
+            <span class="toggle-thumb"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Métricas ── -->
+    <div class="grid-3">
+      <div class="metric-card">
+        <div class="metric-value" id="m-total">0</div>
+        <div class="metric-label">Total enviados</div>
+        <div class="metric-delta" id="m-total-sub" style="color: var(--muted)">en esta sesión</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value" id="m-clicksend" style="color: var(--blue)">0</div>
+        <div class="metric-label">Via ClickSend</div>
+        <div class="metric-delta" id="m-clicksend-pct" style="color: var(--muted)">primario</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value" id="m-twilio" style="color: var(--amber)">0</div>
+        <div class="metric-label">Via Twilio</div>
+        <div class="metric-delta" id="m-twilio-pct" style="color: var(--muted)">fallback</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value" id="m-failed" style="color: var(--red)">0</div>
+        <div class="metric-label">Fallidos</div>
+        <div class="metric-delta" id="m-failed-pct" style="color: var(--muted)">
+          ambos proveedores
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Simulador ── -->
+    <div class="card" style="margin-bottom: 1rem">
+      <div class="card-title">🚀 Simulador de envío OTP</div>
+      <div class="input-group">
+        <input type="text" id="phone-input" value=" +18777804236" placeholder="Ej:  +18777804236" />
+        <button class="btn btn-green" id="btn-send" onclick="sendOtp()">▶ Enviar OTP</button>
+        <button class="btn btn-indigo" id="btn-batch" onclick="sendBatch()">▶▶ Enviar ×5</button>
+      </div>
+      <div id="send-result" style="min-height: 20px; font-size: 12px; color: var(--muted)"></div>
+    </div>
+
+    <!-- ── Log en tiempo real ── -->
+    <div class="card">
+      <div class="card-title" style="justify-content: space-between">
+        <span>📡 Log de eventos en tiempo real</span>
+        <span
+          style="
+            font-size: 10px;
+            background: var(--green-dim);
+            color: var(--green);
+            padding: 2px 8px;
+            border-radius: 99px;
+          "
+          >SSE</span
+        >
+      </div>
+      <div class="log-box" id="log-box">
+        <span class="log-info"
+          ><span class="log-time">--:--:--</span>Conectando al stream de eventos...</span
+        >
+      </div>
+    </div>
+
+    <script>
+      const metrics = { total: 0, clicksend: 0, twilio: 0, failed: 0 };
+
+      // ── Estado del CB ────────────────────────────────────────────────────────────
+      async function refreshStatus() {
+        try {
+          const r = await fetch("/demo/status");
+          if (!r.ok) return;
+          const d = await r.json();
+          updateCBDisplay(d.circuitBreaker);
+          updateProviderTags(d.providers);
+        } catch (e) {
+          /* servidor no disponible aún */
+        }
+      }
+
+      function updateCBDisplay(cb) {
+        const nodes = { CLOSED: "node-closed", OPEN: "node-open", HALF_OPEN: "node-half" };
+        Object.entries(nodes).forEach(([s, id]) => {
+          document.getElementById(id).classList.toggle("active", s === cb.state);
+        });
+
+        const badge = document.getElementById("cb-badge");
+        badge.textContent = cb.state;
+        badge.className =
+          "badge " +
+          { CLOSED: "badge-closed", OPEN: "badge-open", HALF_OPEN: "badge-half" }[cb.state];
+
+        const pct = Math.min((cb.failureCount / cb.threshold) * 100, 100);
+        document.getElementById("cb-fails").textContent = `${cb.failureCount} / ${cb.threshold}`;
+
+        const bar = document.getElementById("fail-bar");
+        bar.style.width = pct + "%";
+        bar.className = "fail-fill" + (pct >= 80 ? " danger" : pct >= 50 ? " warn" : "");
+      }
+
+      function updateProviderTags(providers) {
+        ["clicksend", "twilio"].forEach((p) => {
+          const tag = document.getElementById(`tag-${p}`);
+          const on = providers[p].enabled;
+          const slow = providers[p].slow;
+          tag.textContent = slow ? "lento" : on ? "activo" : "caído";
+          tag.className = "badge " + (on && !slow ? "badge-up" : "badge-down");
+          document.getElementById(`chk-${p}-enabled`).checked = on;
+          document.getElementById(`chk-${p}-slow`).checked = slow;
+        });
+      }
+
+      // ── Acciones de demo ─────────────────────────────────────────────────────────
+      async function forceCB(state) {
+        document.getElementById("btn-cb-closed").disabled = true;
+        document.getElementById("btn-cb-open").disabled = true;
+        document.getElementById("btn-cb-half").disabled = true;
+        await fetch("/demo/cb/force", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ state }),
+        });
+        await refreshStatus();
+        document.getElementById("btn-cb-closed").disabled = false;
+        document.getElementById("btn-cb-open").disabled = false;
+        document.getElementById("btn-cb-half").disabled = false;
+      }
+
+      async function resetCB() {
+        await fetch("/demo/cb/reset", { method: "POST" });
+        await refreshStatus();
+      }
+
+      async function setProvider(provider, field, value) {
+        const body = { provider };
+        body[field] = value;
+        await fetch("/demo/provider", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        await refreshStatus();
+      }
+
+      // ── Envío de OTP ─────────────────────────────────────────────────────────────
+      async function sendOtp() {
+        const phone = document.getElementById("phone-input").value || " +18777804236";
+        const result = document.getElementById("send-result");
+
+        document.getElementById("btn-send").disabled = true;
+        document.getElementById("btn-batch").disabled = true;
+        result.textContent = "⏳ Enviando...";
+        result.style.color = "var(--muted)";
+
+        try {
+          const r = await fetch("/demo/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone }),
+          });
+          const d = await r.json();
+
+          if (r.ok) {
+            metrics.total++;
+            if (d.provider === "CLICKSEND") metrics.clicksend++;
+            else if (d.provider === "TWILIO") metrics.twilio++;
+
+            result.innerHTML = `✓ Enviado via <strong>${d.provider}</strong> · status: <strong>${d.status}</strong> · id: <code style="font-size:10px">${d.notificationId.slice(0, 8)}…</code>`;
+            result.style.color = "var(--green)";
+          } else {
+            metrics.failed++;
+            result.innerHTML = `✗ Error: ${d.error}`;
+            result.style.color = "var(--red)";
+          }
+        } catch (e) {
+          metrics.failed++;
+          result.textContent = `✗ Error de red: ${e.message}`;
+          result.style.color = "var(--red)";
+        }
+
+        updateMetrics();
+        await refreshStatus();
+        document.getElementById("btn-send").disabled = false;
+        document.getElementById("btn-batch").disabled = false;
+      }
+
+      async function sendBatch() {
+        for (let i = 0; i < 5; i++) {
+          await sendOtp();
+          await new Promise((r) => setTimeout(r, 400));
+        }
+      }
+
+      function updateMetrics() {
+        const total = metrics.total || 1;
+        document.getElementById("m-total").textContent = metrics.total;
+        document.getElementById("m-clicksend").textContent = metrics.clicksend;
+        document.getElementById("m-twilio").textContent = metrics.twilio;
+        document.getElementById("m-failed").textContent = metrics.failed;
+
+        if (metrics.total > 0) {
+          document.getElementById("m-clicksend-pct").textContent =
+            `${Math.round((metrics.clicksend / total) * 100)}% del total`;
+          document.getElementById("m-twilio-pct").textContent =
+            `${Math.round((metrics.twilio / total) * 100)}% del total`;
+          document.getElementById("m-failed-pct").textContent =
+            `${Math.round((metrics.failed / total) * 100)}% del total`;
+        }
+      }
+
+      // ── SSE Log stream ─────────────────────────────────────────────────────────
+      const logBox = document.getElementById("log-box");
+      let lastLogCount = 0;
+
+      const evtSource = new EventSource("/demo/logs/stream");
+      evtSource.onmessage = (e) => {
+        const logs = JSON.parse(e.data);
+        if (logs.length === lastLogCount) return;
+        lastLogCount = logs.length;
+
+        if (logs.length === 0) {
+          logBox.innerHTML =
+            '<span class="log-empty">No hay eventos aún. Envía un OTP para comenzar.</span>';
+          return;
+        }
+
+        logBox.innerHTML = logs
+          .map((l) => {
+            const t = new Date(l.timestamp).toTimeString().slice(0, 8);
+            return `<div><span class="log-time">${t}</span><span class="log-${l.level}">${l.message}</span></div>`;
+          })
+          .join("");
+        logBox.scrollTop = logBox.scrollHeight;
+      };
+      evtSource.onerror = () => {
+        console.warn("SSE desconectado, reintentando...");
+      };
+
+      // Refresh de estado cada 2s
+      setInterval(refreshStatus, 2000);
+      refreshStatus();
+    </script>
+  </body>
+</html>
