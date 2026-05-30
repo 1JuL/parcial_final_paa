@@ -1,0 +1,12 @@
+GET http://localhost:8080/transfers/1
+
+###
+
+POST http://localhost:8080/transfers
+content-type: application/json
+
+{
+  "from": 2, 
+  "to": 1, 
+  "amount": 500
+}
